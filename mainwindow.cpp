@@ -29,12 +29,12 @@ CMainWindow::CMainWindow(QWidget *parent) :
 	time_graph.setPen(QPen(Qt::darkRed));
 	spectrum_graph.setPen(QPen(Qt::darkMagenta));
 	exp_graph.setPen(QPen(Qt::darkBlue));
-	var_graph.setPen(QPen(Qt::green));
+	stddev_graph.setPen(QPen(Qt::green));
 
 	// графики
 	time_graph.attach(ui->pltTimeline);
 	spectrum_graph.attach(ui->pltPassing);
-	var_graph.attach(ui->pltAveraged);
+	stddev_graph.attach(ui->pltAveraged);
 	exp_graph.attach(ui->pltAveraged);
 
 	// подписи к осям
@@ -80,8 +80,6 @@ static double to_db(double v)
 {
 	return 20.0 * log10(v / 2e-5);
 }
-
-static double minumum_level_offset = 6.0;
 
 bool CMainWindow::Analyze(const QString &fn)
 {
@@ -164,22 +162,13 @@ bool CMainWindow::Analyze(const QString &fn)
 		QVector<double> x(N-1);
 		x[0] = 0.0;
 		for(int i = 1; i < N; i++)
-			x[i-1] = sqrt( sqr(out[i][0]) + sqr(out[i][1]) );
-
-		// найти минимум
-		double min = DBL_MAX;
-		for(int i = 0; i < x.size(); i++)
-			if(min > x[i] && x[i] > 0)
-				min = x[i];
-		if(min == DBL_MAX)
-			min = minumum_level_offset;
+			x[i-1] = sqrt( sqr(out[i][0]) + sqr(out[i][1]) ) / sqrt(nsamples);
 
 		// сосчитать суммы Xi и Xi^2
 		for(int i = 0; i < freqs.size(); i++)
 		{
 			double db = to_db(x[i]);
-			if(!finite(db))
-				db = min - minumum_level_offset;
+			Q_ASSERT(finite(db));
 			if(length == spectrum_second)
 				spectrum.append(db);
 			E[i] += db;
@@ -189,7 +178,7 @@ bool CMainWindow::Analyze(const QString &fn)
 	}
 
 	expectations.clear();
-	variances.clear();
+	stddevs.clear();
 	// Матожидания
 	Q_ASSERT(length * window_length ==
 		floor((double)snd_file.frames()/snd_file.samplerate()));
@@ -197,7 +186,7 @@ bool CMainWindow::Analyze(const QString &fn)
 		expectations.append(E[i] / length);
 	// Дисперсии
 	for(int i = 0; i < freqs.size(); i++)
-		variances.append( E2[i] / length - sqr(expectations[i]) );
+		stddevs.append( sqrt(E2[i] / length - sqr(expectations[i])) );
 
 	// Освободить ресурсы
 	fftw_destroy_plan(plan);
@@ -212,7 +201,7 @@ void CMainWindow::Plot()
 	time_graph.setData(time, timeline);
 	spectrum_graph.setData(freqs, spectrum);
 	exp_graph.setData(freqs, expectations);
-	var_graph.setData(freqs, variances);
+	stddev_graph.setData(freqs, stddevs);
 
 	ui->pltTimeline->replot();
 	ui->pltPassing->replot();

@@ -29,12 +29,12 @@ private:
 	QVector<double> freqs;
 	QVector<double> spectrum;
 	QVector<double> expectations;
-	QVector<double> variances;
+	QVector<double> stddevs;
 
 	QwtPlotCurve time_graph;
 	QwtPlotCurve spectrum_graph;
 	QwtPlotCurve exp_graph;
-	QwtPlotCurve var_graph;
+	QwtPlotCurve stddev_graph;
 
 	bool Analyze(const QString& fn);
 	void Plot();
